@@ -8,6 +8,4 @@
  * @param {*} element The element to make reactive
  * @param {*} deep If true, makes children reactive as well
  */
-function makeReactive(element, deep = true) {
-  
-}
+function makeReactive(element, deep = true) {}

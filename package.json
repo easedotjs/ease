@@ -4,8 +4,16 @@
   "description": "Ease Framework",
   "main": " ",
   "scripts": {
-    "minify": "terser components/index.js reactive/index.js router/index.js core/index.js -o components/index.min.js reactive/index.min.js router/index.min.js core/index.min.js"
+    "core:minify": "npx esbuild core/index.js --bundle --minify --sourcemap --outfile=core/index.min.js",
+    "components:minify": "npx esbuild components/index.js --bundle --minify --sourcemap --outfile=components/index.min.js",
+    "reactive:minify": "npx esbuild reactive/index.js --bundle --minify --sourcemap --outfile=reactive/index.min.js",
+    "router:minify": "npx esbuild router/index.js --bundle --minify --sourcemap --outfile=router/index.min.js",
+    "all:minify": "npm run core:minify && npm run components:minify && npm run reactive:minify && npm run router:minify",
+    "update-versions": "npm version patch && npm run all:minify && git push && git push --tags"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.23.1"
+  }
 }
