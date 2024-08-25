@@ -160,15 +160,8 @@ async function loadComponent(name, href) {
             args.extensions = {...args.extensions, ...extension.objects}
           })
           
-
-          console.log(args)
-
           // Execute the module
           module.default(args)
-
-          registryElement.attributes.forEach((attribute) => {
-            console.error(attribute)
-          })
         });
 
         // Dispatch attributeChanged event for initial state and handle CSS variables

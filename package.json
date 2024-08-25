@@ -1,17 +1,17 @@
 {
   "name": "ease",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Ease Framework",
   "main": " ",
   "scripts": {
     "core:minify": "npx esbuild core/index.js --bundle --minify --sourcemap --outfile=core/index.min.js",
-    "core:deploy": "npm run core:minify && npm publish --access public",
+    "core:deploy": "npm run core:minify && cd core && npm publish --access public",
     "components:minify": "npx esbuild components/index.js --bundle --minify --sourcemap --outfile=components/index.min.js",
-    "components:deploy": "npm run components:minify && npm publish --access public",
+    "components:deploy": "npm run components:minify && cd components && npm publish --access public",
     "reactive:minify": "npx esbuild reactive/index.js --bundle --minify --sourcemap --outfile=reactive/index.min.js",
-    "reactive:deploy": "npm run reactive:minify && npm publish --access public",
+    "reactive:deploy": "npm run reactive:minify && cd reactive && npm publish --access public",
     "router:minify": "npx esbuild router/index.js --bundle --minify --sourcemap --outfile=router/index.min.js",
-    "router:deploy": "npm run router:minify && npm publish --access public",
+    "router:deploy": "npm run router:minify && cd router && npm publish --access public",
     "all:minify": "npm run core:minify && npm run components:minify && npm run reactive:minify && npm run router:minify",
     "all:deploy": "npm run core:deploy && npm run components:deploy && npm run reactive:deploy && npm run router:deploy",
     "update-versions": "npm version patch && npm run all:minify && git push && git push --tags"    
