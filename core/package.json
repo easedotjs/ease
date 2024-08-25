@@ -1,0 +1,14 @@
+{
+  "name": "@easedotjs/core",
+  "version": "0.0.2",
+  "description": "Core functionality for the Ease framework",
+  "main": "index.js",
+  "author": "",
+  "license": "MIT",
+  "keywords": [
+    "core",
+    "framework",
+    "ease",
+    "easejs"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@easedotjs/components",
+  "version": "0.0.2",
+  "description": "Load components using link tags",
+  "main": "index.js",
+  "author": "James Landrum",
+  "license": "MIT",
+  "keywords": [
+    "components",
+    "webcomponents",
+    "load",
+    "link",
+    "tags",
+    "easejs"
+  ]
+}

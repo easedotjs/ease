@@ -1,0 +1,11 @@
+{
+  "name": "ease",
+  "version": "0.0.3",
+  "description": "Ease Framework",
+  "main": " ",
+  "scripts": {
+    "minify": "terser components/index.js reactive/index.js router/index.js core/index.js -o components/index.min.js reactive/index.min.js router/index.min.js core/index.min.js"
+  },
+  "author": "",
+  "license": "MIT"
+}
