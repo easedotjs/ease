@@ -1,7 +1,7 @@
 {
   "name": "@easedotjs/reactive",
   "version": "0.0.5",
-  "description": "Reactive values with listeners",
+  "description": "Adds support for brackets as live values",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

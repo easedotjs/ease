@@ -25,6 +25,17 @@ let router = {
     }).then((html) => {
       let domParser = new DOMParser()
       let doc = domParser.parseFromString(html, 'text/html')
+      
+      // Load new script tags
+      doc.head.querySelectorAll('script').forEach((script) => {
+        if (document.querySelector(`script[src="${script.src}"]`)) return
+        let newScript = document.createElement('script')
+        newScript.src = script.src
+        newScript.type = script.type
+        newScript.async = true
+        document.head.appendChild(newScript)
+      });
+
       document.title = doc.querySelector('title').textContent
       document.body.innerHTML = doc.querySelector('body').innerHTML
 
@@ -49,24 +60,7 @@ let router = {
   }
 }
 
-/** Handles situations where standard routing is unavailable */
-if (window.location.hash) {
-  router._navigate(window.location.hash.split('#')[1])
-}
-
-// function routeToUrlSearchPath() {
-//   let url = new URL(window.location.href).search.split('?')[1]
-//   router._navigate(router._resolvePath(url))
-// }
-
-// // Detect changes to the URL after ?
-// window.addEventListener('popstate', () => {
-//   routeToUrlSearchPath();
-//   //router.navigate(window.location.pathname)
-// })
-
-globalThis.ease.router = router
-globalThis.ease.addExtension({
-  name: 'router',
+ease.extensions.add({
+  name: '@easedotjs/router',
   objects: { router }
 })

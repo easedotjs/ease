@@ -1,6 +1,6 @@
 {
   "name": "@easedotjs/components",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Load components using link tags",
   "main": "index.js",
   "author": "James Landrum",

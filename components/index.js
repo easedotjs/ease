@@ -1,4 +1,4 @@
-if (!ease) {
+if (typeof ease === 'undefined') {
   throw new Error('This library requires Ease to be loaded first')
 }
 
@@ -14,13 +14,13 @@ let componentRegistry = {}
  * @returns 
  */
 async function fetchComponent(name, href) {
-  let template, script, style, attributes = []
+  let template, script, style, attributes = [], src
 
   await fetch(href)
     .then(async (response) => ({ content: await response.text(), code: response.status }))
     .then(({content, code}) => {
       // If the file does not exist, return an error
-      if (code === 404) {
+      if (code === 404 || code === 0) {
         template = document.createElement('template');
         style = document.createElement('style');
 
@@ -32,6 +32,14 @@ async function fetchComponent(name, href) {
         return;
       }
 
+      // Execute extensions that modify the content
+      ease.extensions.all.forEach((extension) => {
+        if (extension['@easedotjs/components']?.parseTemplate) {
+          content = extension['@easedotjs/components'].parseTemplate(content)
+        }
+      })
+
+      // Parse the content into a document
       let parser = new DOMParser()
       let doc = parser.parseFromString(content, 'text/html')
       
@@ -61,7 +69,7 @@ async function fetchComponent(name, href) {
     error(`Failed to load component '${name}' from ${href}`, err)
   })
 
-  return { template, script, style, attributes }
+  return { template, script, style, attributes, src: href }
 }
 
 /**
@@ -85,8 +93,19 @@ async function loadComponent(name, href) {
   if (!name) return error(`Component ${linkNode} missing name attribute`)
   if (!href) return error(`Component '${name}' missing href`)
   if (!name.includes('-')) return error(`Component '${name}' must contain a hyphen`)
-  if (componentRegistry[name]) return info(`Component '${name}' already exists in registry, skipping load`)
-    
+  if (componentRegistry[name]) {
+    if (componentRegistry[name].src === href) {
+      return info(`Component '${name}' already exists in registry`)
+    } else {
+      return error(
+        `Component '${name}' already exists in registry with a different source`, 
+        `Existing component: ${componentRegistry[name].src}`, 
+        `New component: ${href}`,
+        'This will cause the existing component to be used instead of the new component',
+        'If you are using a router or other dynamic loading, try using different namespaces for components')
+    }
+  }
+
   /** Load HTML into the registry */
   let componentDef = await fetchComponent(name, href)
   if (!componentDef.template) return error(`Component '${name}' missing template`)
@@ -96,6 +115,9 @@ async function loadComponent(name, href) {
 
   /** Define the custom element */
   customElements.define(name, class extends HTMLElement {
+    attributes = {}
+    eventListeners = []
+
     constructor() {
       super()
       let registryElement = componentRegistry[name]
@@ -136,39 +158,76 @@ async function loadComponent(name, href) {
           let args = {
             root: shadow, 
             // Element access
-            el: elements, 
             elements,
+            get el () { return this.elements }, 
             // Attributes
-            attr: this.attributes,
-            attributes: this.attributes,
+            attributes: [],
+            get attr () { return this.attributes },
             // Extensions
             extensions: {},
-            get ex () { return this.extensions },
+            get ext () { return this.extensions },
             get [config.inject.name] () { return this.extensions }
           }          
 
           // Inject extensions
           config.inject.extensions.forEach((extension) => {
-            // Add methods to the extensions
-            extension.methods?.forEach?.((method) => { 
-              if (args.extensions[method.name])  {
-                return warn(`Extension method '${method.name}' already exists in extensions, skipping`)
-              }
-              args.extensions[method.name] = method
-            })
+            // Ensure the extension has methods
+            if (extension.methods) {            
+              // Add methods to the extensions
+              Object.keys(extension.methods)?.forEach?.((method) => { 
+                if (extension[method])  {
+                  return warn(`Extension method '${method.name}' already exists in extensions, skipping`)
+                }
+                args.extensions[method] = extension.methods[method]
+              })
+            }
+
             // Add objects to the extensions
-            args.extensions = {...args.extensions, ...extension.objects}
+            Object.assign(args.extensions, extension.objects)
           })
+
+          // Inject attributes
+          Object.keys(registryElement.attributes).forEach((key) => {
+            let attribute = registryElement.attributes[key]
+            this.attributes[attribute.name] = {
+              listeners: [],
+              _value: this.getAttribute(attribute.name) || attribute.default,
+              set value(newValue) {
+                let oldValue = this._value
+                this._value = newValue
+                this.listeners.forEach((listener) => listener(newValue, oldValue))
+                shadow.dispatchEvent(new CustomEvent('attribute-changed', { detail: {name: attribute.name, oldValue: oldValue, newValue: newValue }}))
+              },
+              get value() {
+                return this._value
+              },              
+              watch(listener) {
+                this.listeners.push(listener)
+                listener(this.value, null)
+              },
+              unwatch(listener) {
+                this.listeners = this.listeners.filter((l) => l !== listener)
+              }
+            }            
+          })
+          args.attributes = this.attributes
           
+          // Handle post-parsing extensions
+          ease.extensions.all.forEach((extension) => {
+            if (extension['@easedotjs/components']?.onInit) {
+              extension['@easedotjs/components'].onInit({ shadow, args })
+            }
+          })
+
           // Execute the module
-          module.default(args)
+          setTimeout(() => module.default(args))
         });
 
         // Dispatch attributeChanged event for initial state and handle CSS variables
         let cssVars = {}
         Object.keys(registryElement.attributes).forEach((key) => {
           let attribute = registryElement.attributes[key] 
-          this.shadow.dispatchEvent(new CustomEvent('attributeChanged', { detail: {name: attribute, oldValue: null, newValue: this.getAttribute(attribute) }}))
+          this.shadow.dispatchEvent(new CustomEvent('attribute-changed', { detail: {name: attribute, oldValue: null, newValue: this.getAttribute(attribute) }}))
 
           // If the attribute is exposed to CSS, update the CSS variable
           if (attribute.style && this.getAttribute(attribute.name)) {
@@ -192,15 +251,39 @@ async function loadComponent(name, href) {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-      this.shadow.dispatchEvent(new CustomEvent('attributeChanged', { detail: {name, oldValue, newValue}} ))
+      if (this.attributes[name]) {
+        this.attributes[name].value = newValue
+      }
+    }
+
+    addEventListener(name, callback) {
+      this.eventListeners.push({ name, callback })
+      this.shadow.addEventListener(name, callback)
+    }
+
+    removeEventListener(name, callback) {
+      this.eventListeners = this.eventListeners.filter((listener) => {
+        if (listener.name === name && listener.callback === callback) {
+          this.shadow.removeEventListener(name, callback)
+          return false
+        }
+        return true
+      })
+    }
+
+    disconnectedCallback() {
+      this.eventListeners.forEach((listener) => {
+        this.shadow.removeEventListener(listener.name, listener.callback)
+      })
     }
 
     static get observedAttributes() {
-      return Object.values(componentRegistry[name].attributes)
+      return Object.keys(componentRegistry[name].attributes)
     }
   })
 }
 
+// TODO: Consider a better way to handle this
 /** If the body is replaced, scan for updated links */
 document.addEventListener('ease_load_component', (event) => {
   if (event.detail.name) {
@@ -209,9 +292,10 @@ document.addEventListener('ease_load_component', (event) => {
 })
 
 /** Get all component imports */
-let components = document.querySelectorAll(['link[rel="component"]'])
-if (components) {  
-
-  /** Load all components */
-  components.forEach(loadComponentFromLink)
-} else warn('No components found')
+document.addEventListener('DOMContentLoaded', () => {
+  let components = document.querySelectorAll(['link[rel="component"]'])
+  if (components) {  
+    /** Load all components */
+    components.forEach(loadComponentFromLink)
+  } else warn('No components found')
+});

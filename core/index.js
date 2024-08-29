@@ -1,6 +1,5 @@
 /** Ease */
 import * as log from './log.js'
-import { onFetch } from './event-bridge.js'
 
 /* Core Config */
 export let config = {
@@ -47,8 +46,42 @@ export function addExtension(object) {
   log.info(`Extension '${name}' has been added to Ease`)
 }
 
+export function getExtension(name) {
+  return config.inject.extensions.find((extension) => extension.name === name)
+}
+
+export function hasExtension(name) {
+  if (typeof name === 'string') return !!getExtension(name)
+  if (typeof name === 'array') return name.every((n) => !!getExtension(n))
+  return false
+}
+
+export function requireExtensions(names) {
+  if (typeof names === 'string') names = [names]
+  names.forEach((name) => {
+    if (!hasExtension(name)) throw new Error(`Extension '${name}' is required but not loaded`)
+  })
+  return true
+}
+
+export function beforeExtensions(names) {
+  if (typeof names === 'string') names = [names]
+  names.forEach((name) => {
+    if (getExtension(name)) {
+      console.error(`Extension '${name}' is already loaded - this extension should be loaded before it`)
+    }
+  })
+}
+
 /* Print to the console if debug mode is enabled */
 if (config.core.debug) log.info('Ease Loaded in Debug Mode');
 
 /* Export Ease */
-globalThis.ease = { config, addExtension, log }
+globalThis.ease = { config, log, extensions: {
+  add: addExtension,
+  get: getExtension,
+  has: hasExtension,
+  require: requireExtensions,
+  before: beforeExtensions,
+  all: config.inject.extensions,
+}}

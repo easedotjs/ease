@@ -1,6 +1,9 @@
 /**
  * Creates reactive values that can be subscribed to.
  */
+if (typeof ease === 'undefined') {
+  throw new Error('This library requires Ease to be loaded first')
+}
 
 /**
  * Creates a reactive value that can be subscribed to.
@@ -48,8 +51,7 @@ function live(initialValue = null, handler = null) {
   }
 }
 
-if (ease !== undefined) {
-  ease.addExtension({
-    methods: [ live ]
-  })
-}
+ease.extensions.add({
+  name: '@easedotjs/reactive',
+  methods: { live }
+})

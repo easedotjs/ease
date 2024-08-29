@@ -1,9 +1,9 @@
 {
   "name": "@easedotjs/core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Core functionality for the Ease framework",
   "main": "index.js",
-  "author": "",
+  "author": "James Landrum",
   "license": "MIT",
   "keywords": [
     "core",
