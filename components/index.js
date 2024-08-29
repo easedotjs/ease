@@ -223,30 +223,32 @@ async function loadComponent(name, href) {
           setTimeout(() => module.default(args))
         });
 
-        // Dispatch attributeChanged event for initial state and handle CSS variables
-        let cssVars = {}
+        // Dispatch attributeChanged event for initial state
         Object.keys(registryElement.attributes).forEach((key) => {
-          let attribute = registryElement.attributes[key] 
+          let attribute = registryElement.attributes[key]
           this.shadow.dispatchEvent(new CustomEvent('attribute-changed', { detail: {name: attribute, oldValue: null, newValue: this.getAttribute(attribute) }}))
+        })      
+      }
 
-          // If the attribute is exposed to CSS, update the CSS variable
-          if (attribute.style && this.getAttribute(attribute.name)) {
-            cssVars[attribute.name] = this.getAttribute(attribute.name)
-          }
-        })
-
-        // Apply CSS variables
-        if (Object.keys(cssVars).length > 0) {
-          let style = document.createElement('style')
-          let css = ':host {'
-          Object.keys(cssVars).forEach((key) => {
-            css += `--${key}: ${cssVars[key]};`
-          })
-          css += '}'
-          style.innerHTML = css
-          shadow.appendChild(style)
+      // Handle CSS variables
+      let cssVars = {}
+      Object.keys(registryElement.attributes).forEach((key) => {
+        let attribute = registryElement.attributes[key]
+        if (attribute.style && this.getAttribute(attribute.name)) {
+          cssVars[attribute.name] = this.getAttribute(attribute.name)
         }
-      
+      })
+
+      // Apply CSS variables
+      if (Object.keys(cssVars).length > 0) {
+        let style = document.createElement('style')
+        let css = ':host {'
+        Object.keys(cssVars).forEach((key) => {
+          css += `--${key}: ${cssVars[key]};`
+        })
+        css += '}'
+        style.innerHTML = css
+        shadow.appendChild(style)
       }
     }
 
@@ -283,6 +285,23 @@ async function loadComponent(name, href) {
   })
 }
 
+function loadComponentDef(href) {
+  fetch(href).then((response) => {
+    if (response.status === 404) {
+      throw warn(`Failed to load component from ${href}`)
+    }
+    return response.text()
+  }).then((content) => {
+    let parser = new DOMParser()
+    let components = parser.parseFromString(content, 'text/xml').querySelector('components')
+    components.childNodes.forEach((component) => {
+      if (component.nodeName === 'component') {
+        loadComponent(component.attributes['name'].value, component.attributes['href'].value)
+      }
+    })
+  })
+}
+
 // TODO: Consider a better way to handle this
 /** If the body is replaced, scan for updated links */
 document.addEventListener('ease_load_component', (event) => {
@@ -297,5 +316,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (components) {  
     /** Load all components */
     components.forEach(loadComponentFromLink)
-  } else warn('No components found')
+  }
+
+  let componentDefs = document.querySelectorAll(['link[rel="component-def"]'])
+  if (componentDefs) {
+    componentDefs.forEach((link) => {
+      console.error(link)
+      loadComponentDef(link.attributes['href'].value)
+    })
+  }
+
+  if (!components && !componentDefs) {
+    warn('No components found in document')
+  }
 });
