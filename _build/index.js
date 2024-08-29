@@ -26,7 +26,7 @@ function syncVersions() {
   }
 
   // Packages to update
-  const packages = ['core', 'components', 'reactive', 'router']
+  const packages = ['core', 'components', 'reactive', 'router', 'reactive-dom']
 
   // Update the versions
   packages.forEach(pkg => {
