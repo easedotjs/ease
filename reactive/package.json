@@ -1,6 +1,6 @@
 {
   "name": "@easedotjs/reactive",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Reactive values with listeners",
   "main": "index.js",
   "scripts": {

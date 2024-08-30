@@ -1,6 +1,6 @@
 {
   "name": "@easedotjs/router",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "A simple router for the Ease framework",
   "main": "index.js",
   "author": "James Landrum",

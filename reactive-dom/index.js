@@ -42,10 +42,19 @@ function onInit({ shadow, args }) {
   });
 }
 
+function onCleanup({args}) {
+  if (args.rx) {
+    Object.keys(args.rx).forEach((key) => {
+      args.rx[key].unsubscribe()
+    })
+  } 
+}
+
 ease.extensions.add({
   name: '@easedotjs/reactive-dom',
   ['@easedotjs/components']: { 
     parseTemplate,
-    onInit
+    onInit,
+    onCleanup
   }
 });

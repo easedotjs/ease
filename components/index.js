@@ -69,6 +69,13 @@ async function fetchComponent(name, href) {
     error(`Failed to load component '${name}' from ${href}`, err)
   })
 
+  // Cache the script blob
+  if (script) {
+    const scriptContent = script.textContent
+    const blob = new Blob([scriptContent], { type: 'text/javascript' })
+    script = URL.createObjectURL(blob)
+  }
+
   return { template, script, style, attributes, src: href }
 }
 
@@ -117,6 +124,8 @@ async function loadComponent(name, href) {
   customElements.define(name, class extends HTMLElement {
     attributes = {}
     eventListeners = []
+    onUnload = undefined
+    args = { test: 2 }
 
     constructor() {
       super()
@@ -136,11 +145,11 @@ async function loadComponent(name, href) {
       shadow.appendChild(registryElement.template.content.cloneNode(true))
 
       if (registryElement.style) shadow.appendChild(registryElement.style.cloneNode(true))
+
+      // TODO: Some of this depends on the script tag existing, when it shouldn't matter
       if (registryElement.script) { 
         // Get the contents of the script tag if exists
-        const scriptContent = registryElement.script.textContent
-        const blob = new Blob([scriptContent], { type: 'text/javascript' })
-        const moduleURL = URL.createObjectURL(blob)
+        const moduleURL = registryElement.script
 
         // Capture all elements with an ID
         let elements = []
@@ -155,7 +164,7 @@ async function loadComponent(name, href) {
           // Inject the module with the shadow node and elements
           // We use names with multiple aliases to make it easier to access
           // depending on your preferences; more explicit or more verbose.
-          let args = {
+          this.args = {
             root: shadow, 
             // Element access
             elements,
@@ -178,12 +187,12 @@ async function loadComponent(name, href) {
                 if (extension[method])  {
                   return warn(`Extension method '${method.name}' already exists in extensions, skipping`)
                 }
-                args.extensions[method] = extension.methods[method]
+                this.args.extensions[method] = extension.methods[method]
               })
             }
 
             // Add objects to the extensions
-            Object.assign(args.extensions, extension.objects)
+            Object.assign(this.args.extensions, extension.objects)
           })
 
           // Inject attributes
@@ -207,27 +216,33 @@ async function loadComponent(name, href) {
               },
               unwatch(listener) {
                 this.listeners = this.listeners.filter((l) => l !== listener)
+              },
+              unwatchAll() {
+                this.listeners = []
               }
             }            
           })
-          args.attributes = this.attributes
+          this.args.attributes = this.attributes
           
           // Handle post-parsing extensions
           ease.extensions.all.forEach((extension) => {
             if (extension['@easedotjs/components']?.onInit) {
-              extension['@easedotjs/components'].onInit({ shadow, args })
+              extension['@easedotjs/components'].onInit({ shadow, args: this.args })
             }
           })
 
           // Execute the module
-          setTimeout(() => module.default(args))
+          setTimeout(() => {
+            this.onUnload = module.default(this.args)
+          })
         });
 
         // Dispatch attributeChanged event for initial state
         Object.keys(registryElement.attributes).forEach((key) => {
           let attribute = registryElement.attributes[key]
           this.shadow.dispatchEvent(new CustomEvent('attribute-changed', { detail: {name: attribute, oldValue: null, newValue: this.getAttribute(attribute) }}))
-        })      
+        })
+        
       }
 
       // Handle CSS variables
@@ -249,21 +264,24 @@ async function loadComponent(name, href) {
         css += '}'
         style.innerHTML = css
         shadow.appendChild(style)
-      }
+      }      
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
+      // Update the attribute value
       if (this.attributes[name]) {
         this.attributes[name].value = newValue
       }
     }
 
     addEventListener(name, callback) {
+      // Add the event listener to the shadow node and store it
       this.eventListeners.push({ name, callback })
       this.shadow.addEventListener(name, callback)
     }
 
     removeEventListener(name, callback) {
+      // Remove the event listener from the shadow node
       this.eventListeners = this.eventListeners.filter((listener) => {
         if (listener.name === name && listener.callback === callback) {
           this.shadow.removeEventListener(name, callback)
@@ -274,9 +292,30 @@ async function loadComponent(name, href) {
     }
 
     disconnectedCallback() {
-      this.eventListeners.forEach((listener) => {
-        this.shadow.removeEventListener(listener.name, listener.callback)
-      })
+      // Ensure the component has been initialized before unloading
+      if (this.args) {
+        // Execute the onUnload method if it exists
+        this.onUnload?.(this.args)
+
+        // Remove all event listeners
+        this.eventListeners.forEach((listener) => {
+          this.shadow.removeEventListener(listener.name, listener.callback)
+        })
+
+        // Execute the onCleanup method in extensions that have it
+        ease.extensions.all.forEach((extension) => {
+          if (extension['@easedotjs/components']?.onCleanup) {
+            extension['@easedotjs/components'].onCleanup({ shadow: this.shadow, args: this.args })
+          }
+        })
+
+        // Unwatch all attributes
+        if (this.args && this.args.attributes) {
+          Object.keys(this.args.attributes).forEach((attribute) => {
+            this.args.attributes[attribute].unwatchAll()
+          });
+        }
+      }
     }
 
     static get observedAttributes() {
