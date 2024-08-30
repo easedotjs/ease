@@ -1,8 +1,3 @@
-/* Ensure Ease is not already loaded */
-if (ease) {
-  return;
-}
-
 /** Ease */
 import * as log from './log.js'
 
@@ -57,7 +52,7 @@ export function getExtension(name) {
 
 export function hasExtension(name) {
   if (typeof name === 'string') return !!getExtension(name)
-  if (typeof name === 'array') return name.every((n) => !!getExtension(n))
+  if (Array.isArray(name)) return name.every((n) => !!getExtension(n))
   return false
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "ease",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "Ease Framework",
   "main": " ",
   "scripts": {
@@ -17,9 +17,9 @@
     "all:minify": "npm run core:minify && npm run components:minify && npm run reactive:minify && npm run router:minify && npm run reactive-dom:minify",
     "all:deploy": "npm run core:deploy && npm run components:deploy && npm run reactive:deploy && npm run router:deploy && npm run reactive-dom:deploy",
     "all:syncVersions": "node ./_build/index.js sync-versions",
-    "all:deploy:patch": "npm run all:syncVersions patch && npm run all:minify && npm run all:deploy",
-    "all:deploy:minor": "npm run all:syncVersions minor && npm run all:minify && npm run all:deploy",
-    "all:deploy:major": "npm run all:syncVersions major && npm run all:minify && npm run all:deploy"
+    "all:deploy:patch": "npm run all:syncVersions patch && npm run all:minify && git add . && git commit && npm run all:deploy",
+    "all:deploy:minor": "npm run all:syncVersions minor && npm run all:minify && git add . && git commit && npm run all:deploy",
+    "all:deploy:major": "npm run all:syncVersions major && npm run all:minify && git add . && git commit && npm run all:deploy"
   },
   "author": "",
   "license": "MIT",
