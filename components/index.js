@@ -79,7 +79,7 @@ async function fetchComponent(name, href) {
 async function loadComponentFromLink(linkNode) {
   let name = linkNode.attributes['name']?.value
   let href = linkNode.attributes['href']?.value
-  loadComponent(name, href)
+  return loadComponent(name, href)
 }
 
 /**
@@ -310,8 +310,9 @@ document.addEventListener('ease_load_component', (event) => {
   }
 })
 
-/** Get all component imports */
+/** Get all component imports and load them */
 document.addEventListener('DOMContentLoaded', () => {
+  
   let components = document.querySelectorAll(['link[rel="component"]'])
   if (components) {  
     /** Load all components */
@@ -321,7 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let componentDefs = document.querySelectorAll(['link[rel="component-def"]'])
   if (componentDefs) {
     componentDefs.forEach((link) => {
-      console.error(link)
       loadComponentDef(link.attributes['href'].value)
     })
   }

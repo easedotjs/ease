@@ -1,3 +1,8 @@
+/* Ensure Ease is not already loaded */
+if (ease) {
+  return;
+}
+
 /** Ease */
 import * as log from './log.js'
 
