@@ -8,7 +8,7 @@ const { error } = ease.log;
 
 // Get the live method from the reactive extension
 const live = ease.extensions.get('@easedotjs/reactive').methods.live;
-const mutationObservers = [];
+let evals = [];
 
 /**
  * Parses a template string and converts all {{}} to <reactive-text></reactive-text>
@@ -77,7 +77,13 @@ function onInit({ shadow, args }) {
         } else {
           textNode.textContent = path.reduce((acc, key) => acc[key], args);
         }
-      }; evaluate();      
+      }; evaluate();
+      evals.push(evaluate);
+
+      // Add an update method to rx
+      if (!args.rx.update) {
+        args.rx.update = () => evals.forEach((evaluate) => evaluate());
+      }
     } else {
       // If the key does not exist, create a new reactive value
       if (!args.rx[key]) {
@@ -100,6 +106,7 @@ function onCleanup({args}) {
       args.rx[key].unsubscribe();
     })
   } 
+  evals = [];
 }
 
 ease.extensions.add({
