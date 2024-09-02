@@ -37,6 +37,8 @@ function onInit({ shadow, args }) {
   // Add reactive meta if it does not exist
   args.rx = args.rx || {};
 
+  // TODO: Make reactive attributes work
+  
   // Convert all reactive-text elements to reactive values
   reactiveTextElements.forEach((element) => {
     // Get the key from the text content
