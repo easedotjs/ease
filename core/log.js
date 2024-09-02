@@ -5,6 +5,9 @@ export function error(...data) {
   console.group(`[Error] Ease: ${data[0]}`)
   data.slice(1).forEach((v) => console.error(v))
   console.groupEnd();
+  return {
+    toError: () => new Error(data.toString())
+  }
 }
 
 export function warn(...data) {
@@ -12,6 +15,9 @@ export function warn(...data) {
   console.group(`[Warn] Ease: ${data[0]}`)
   data.slice(1).forEach((v) => console.warn(v))
   console.groupEnd();
+  return {
+    toError: () => new Error(data.toString())
+  }
 }
 
 export function log(...data) {
@@ -19,6 +25,9 @@ export function log(...data) {
   console.group(`[Log] Ease: ${data[0]}`)
   data.slice(1).forEach((v) => console.log(v))
   console.groupEnd();
+  return {
+    toError: () => new Error(data.toString())
+  }
 }
 
 export function info(...data) {
@@ -26,4 +35,7 @@ export function info(...data) {
   console.group(`[Info] Ease: ${data[0]}`)
   data.slice(1).forEach((v) => console.info(v))
   console.groupEnd();
+  return {
+    toError: () => new Error(data.toString())
+  }
 }

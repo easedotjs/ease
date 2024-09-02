@@ -4,16 +4,24 @@ if (typeof ease === 'undefined') {
 ease.extensions.require(['@easedotjs/reactive'])
 ease.extensions.before(['@easedotjs/components'])
 
+const { error } = ease.log;
+
 // Get the live method from the reactive extension
 const live = ease.extensions.get('@easedotjs/reactive').methods.live;
+const mutationObservers = [];
 
 /**
  * Parses a template string and converts all {{}} to <reactive-text></reactive-text>
  * @param {string} The text content of a <template> tag 
  * @returns A string with the text wrapped in <reactive-text></reactive-text>
  */
-function parseTemplate(template) {
- return template.replace(/{{(.*?)}}/, '<reactive-text>$1</reactive-text>')
+function onFetchComponent({template}) {
+  // TODO: This could be much cleaner and safer; but possibly slower if we crawl the DOM
+  //       for text nodes.
+  let test = template.innerHTML.replace(/{{(.*?)}}/g, '<reactive-text>$1</reactive-text>');
+  let parser = new DOMParser();
+  let doc = parser.parseFromString(test, 'text/html');
+  template.innerHTML = doc.body.innerHTML;
 }
 
 /**
@@ -22,30 +30,74 @@ function parseTemplate(template) {
  */
 function onInit({ shadow, args }) {
   // Find all reactive-text elements
-  let reactiveTextElements = shadow.querySelectorAll('reactive-text')
+  let reactiveTextElements = shadow.querySelectorAll('reactive-text');
+
+  if (reactiveTextElements.length === 0) return;
   
   // Add reactive meta if it does not exist
-  args.rx = args.rx || {}
+  args.rx = args.rx || {};
 
   // Convert all reactive-text elements to reactive values
   reactiveTextElements.forEach((element) => {
-    let key = element.textContent.trim()
-    let reactiveValue = live()
-    let textNode = document.createTextNode('')
+    // Get the key from the text content
+    let key = element.textContent.trim();
+    let textNode = document.createTextNode('');
+    element.parentNode.replaceChild(textNode, element);
 
-    element.parentNode.replaceChild(textNode, element)
-    
-    reactiveValue.subscribe((value) => {
-      textNode.textContent = value.value;
-    });
-    args.rx[key] = reactiveValue;
-  });
+    // If the key starts with :, it's bound to an attribute
+    if (key.startsWith(':')) {
+      key = key.substring(1);
+
+      // If the key exists, bind the reactive value to the attribute
+      if (!args.attributes[key]) {
+        throw error(`Attribute ${key} does not exist, but is using the attribute binding syntax :${key}`, 
+                    'In component:', shadow.tagName,
+                    'At position:', shadow).toError();
+      }
+
+      args.attributes[key]?.watch((value) => {
+        textNode.textContent = value;
+      });
+
+      textNode.textContent = args.attributes[key].value;
+    } else if (key.startsWith('[')) {
+      // If the key starts with [, it's an expression
+      // NOTE: This is a very basic implementation and does not support complex expressions
+      //       nor is it reactive. This is a proof of concept.
+      function evaluate() {
+        const expression = key.substring(1, key.length - 1);
+        const path = expression.split('.');
+        
+        const targetPath = path.slice(0,-1).reduce((acc, key) => acc[key], args);
+        let target = path[path.length - 1];
+  
+        if (target.endsWith('()')) { 
+          target = target.substring(0, target.length - 2);
+          textNode.textContent = targetPath[target].call(targetPath);
+        } else {
+          textNode.textContent = path.reduce((acc, key) => acc[key], args);
+        }
+      }; evaluate();      
+    } else {
+      // If the key does not exist, create a new reactive value
+      if (!args.rx[key]) {
+        args.rx[key] = live();
+      }
+      
+      args.rx[key].subscribe((value) => {
+        textNode.textContent = value.value;
+      });
+    }
+  });  
 }
 
+/**
+ * Cleans up reactive values when a component is removed
+ */
 function onCleanup({args}) {
   if (args.rx) {
     Object.keys(args.rx).forEach((key) => {
-      args.rx[key].unsubscribe()
+      args.rx[key].unsubscribe();
     })
   } 
 }
@@ -53,7 +105,7 @@ function onCleanup({args}) {
 ease.extensions.add({
   name: '@easedotjs/reactive-dom',
   ['@easedotjs/components']: { 
-    parseTemplate,
+    onFetchComponent,
     onInit,
     onCleanup
   }

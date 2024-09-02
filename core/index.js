@@ -35,8 +35,11 @@ document.querySelectorAll('meta')?.forEach((meta) => {
  * - methods: An object containing methods to be added to Ease
  * - objects: An object containing properties to be added to Ease
  * 
- * While Ease Core does not use extensions, they can be used to add functionality
- * to modules that use Ease.
+ * These are considered "artifacts" of an extension.
+ * 
+ * While Ease Core itself does not use extensions, they can be used to add functionality
+ * to modules that use Ease. Typically, extensions should request the modules they need
+ * by those containing artifacts of their own name.
  * 
  * @param {*} object The object to be injected
  */
@@ -68,9 +71,19 @@ export function beforeExtensions(names) {
   if (typeof names === 'string') names = [names]
   names.forEach((name) => {
     if (getExtension(name)) {
-      console.error(`Extension '${name}' is already loaded - this extension should be loaded before it`)
+      error(`Extension '${name}' is already loaded - this extension should be loaded before it`)
     }
   })
+}
+
+/**
+ * Returns all extensions that contain a specific element
+ * @param {*} element The element to search for
+ * @returns A list of extensions with the given element
+ */
+export function getExtensionsByArtifact(element) {
+  return config.inject.extensions.filter((extension) => !!extension[element])
+          .map((extension) => extension[element])
 }
 
 /* Print to the console if debug mode is enabled */
@@ -83,5 +96,6 @@ globalThis.ease = { config, log, extensions: {
   has: hasExtension,
   require: requireExtensions,
   before: beforeExtensions,
+  getExtensionsByArtifact,
   all: config.inject.extensions,
 }}

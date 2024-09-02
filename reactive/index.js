@@ -47,6 +47,14 @@ function live(initialValue = null, handler = null) {
     unsubscribe: function (handler) {
       handlers = handlers.filter((h) => h !== handler)
       return this
+    },
+    /**
+     * Unsubscribes all handlers from the reactive value
+     * @returns A reference to self
+     */
+    unsubscribeAll: function () {
+      handlers = []
+      return this
     }
   }
 }
