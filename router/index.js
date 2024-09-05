@@ -110,19 +110,24 @@ class LinkToElement extends HTMLElement {
   constructor() {
     super();
     const anchor = document.createElement('a');
-    anchor.href = this.getAttribute('href')
-    anchor.textContent = this.textContent
+    anchor.href = this.getAttribute('href');
+    anchor.textContent = this.textContent;
 
     this.textContent = '';
-    this.appendChild(anchor)
+    this.appendChild(anchor);
 
     anchor.addEventListener('click', (event) => {
-      event.preventDefault()
-      router.push(this.getAttribute('href'))
+      event.preventDefault();
+      router.push(this.getAttribute('href'));
     })
   }
 };
 customElements.define('nav-to', LinkToElement);
+
+// Listen for popstate events
+window.addEventListener('popstate', () => {
+  router._navigate(window.location.href);
+})
 
 
 ease.extensions.add({
