@@ -1,17 +1,10 @@
 /**
- * Creates reactive values that can be subscribed to.
- */
-if (typeof ease === 'undefined') {
-  throw new Error('This library requires Ease to be loaded first')
-}
-
-/**
  * Creates a reactive value that can be subscribed to.
  * @param {*} initialValue The initial value of the reactive value
  * @param {*} handler An optional handler to be called when the value changes
  * @returns The reactive value
  */
-function live(initialValue = null, handler = null) {  
+export function live(initialValue = null, handler = null) {  
   let _value = initialValue
   let handlers = []
 
@@ -58,8 +51,3 @@ function live(initialValue = null, handler = null) {
     }
   }
 }
-
-ease.extensions.add({
-  name: '@easedotjs/reactive',
-  methods: { live }
-})

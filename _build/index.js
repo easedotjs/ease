@@ -4,7 +4,7 @@ const fs = require('fs')
 // Sync the versions across all packages from the root package.json
 function syncVersions() {
   // Packages to update
-  const packages = ['core', 'components', 'reactive', 'router', 'reactive-dom']
+  const packages = ['core', 'components', 'router', 'reactive-dom']
 
   // Get the root package
   const root = require(path.join(__dirname, '..', 'package.json'))

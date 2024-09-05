@@ -16,7 +16,7 @@ export function createWebComponentClass(
   template,
   style,
   scriptUrl,
-  attributes,
+  properties,
 ) {
   // TODO: A lot of this code is only needed to be initialized once 
   //       - we should make it static on the class
@@ -25,7 +25,7 @@ export function createWebComponentClass(
     _shadow;
     _mounted = false;
     _styleEl;
-    _attrStyleEl;
+    _propStyleEl;
     _eventListeners = [];
     _args = {
       // The shadow
@@ -33,9 +33,9 @@ export function createWebComponentClass(
       // Elements
       elements: {},
       get el() { return this.elements },
-      // Attributes
-      attributes: {},
-      get attr() { return this.attributes },
+      // Properties
+      properties: {},
+      get props() { return this.properties },
       // Extensions
       extensions: {},
       get ext() { return this.extensions },
@@ -69,24 +69,25 @@ export function createWebComponentClass(
         this._shadow.appendChild(this._styleEl);
       } 
 
-      // Get attributes and store them in the attributes object
-      let attrStyles = '';      
-      attributes?.forEach?.((attr) => {
-        this._args.attributes[attr.name] = {
+      // Get properties and store them in the properties object
+      let propStyles = '';      
+      properties?.forEach?.((prop) => {        
+        this._args.properties[prop.name] = {
           _listeners: [],
-          _value: attr.default,
-          type: attr.type,
-          required: attr.required,
-          exposeToStyle: attr.exposeToStyle,
+          _value: prop.default,
+          type: prop.type,
+          required: prop.required,
+          exposeToStyles: prop.exposeToStyles,
+          attribute: prop.attribute,
           get value() { return this._value },
           set value(v) { 
             const prev = this._value;
             this._value = v;
             this._listeners.forEach((l) => l(v, prev));
-            if (this.exposeToStyle) self.updateAttrStyles();
+            if (this.exposeToStyles) self.updateStyles();
           },
           /**
-           * Adds a watcher to the attribute, which receives the current and previous values
+           * Adds a watcher to the property, which receives the current and previous values
            * This will be invoked on mount and whenever the value changes
            * @param {function} callback 
            */
@@ -97,36 +98,47 @@ export function createWebComponentClass(
             }
           },
           /**
-           * Removes a watcher from the attribute
+           * Removes a watcher from the property
            * @param {function} callback
            */
           unwatch(callback) {
             this._listeners = _listeners.filter((l) => l !== callback);
           },
           /**
-           * Removes all watchers from the attribute
+           * Removes all watchers from the property
            */
           unwatchAll() {
             this._listeners = [];
           }
         };
+        
+        Object.defineProperty(this, prop.name, {
+          get: () => this._args.properties[prop.name].value,
+          set: (v) => { 
+            this._args.properties[prop.name].value = v
+          }
+        })
 
         // If the attribute is required, throw an error if it is not present 
-        if (attr.required && !this.hasAttribute(attr.name)) {
-          throw error(`Attribute ${attr.name} is required`).toError();
+        if (prop.required && prop.attribute && !this.hasAttribute(prop.name)) {
+          throw error(`Attribute ${prop.name} is required`).toError();
         }
 
-        // If the attribute is set for style exposure, add it to the style element
-        if (attr.exposeToStyle) {
-          attrStyles += `--${attr.name}: ${this.getAttribute(attr.name)}; `;
+        if (prop.attribute) {
+          this._args.properties[prop.name].value = this.getAttribute(prop.name) || prop.default;
+        }
+
+        // If the property is set for style exposure, add it to the style element
+        if (prop.exposeToStyles) {
+          propStyles += `--${prop.name}: ${this._args.properties[prop.name].value}; `;
         }
       });
 
       // Add the attribute styles to the style element
-      if (attrStyles) {
-        this._attrStyleEl = document.createElement('style');
-        this._attrStyleEl.textContent += `:host { ${attrStyles} }`;
-        this._shadow.insertBefore(this._attrStyleEl, this._styleEl);
+      if (propStyles) {
+        this._propStyleEl = document.createElement('style');
+        this._propStyleEl.textContent += `:host { ${propStyles} }`;
+        this._shadow.insertBefore(this._propStyleEl, this._styleEl);
       }
 
       // Get elements by ID and store them in the elements object
@@ -163,10 +175,9 @@ export function createWebComponentClass(
       // Load the script
       if (scriptUrl) {
         import(scriptUrl).then((module) => {
-          if (!module.default) return;
-
+          if (!module.default) return;          
           // If the module has a default export, call it with the component as the argument
-          if (module.default) module.default(this._args);
+          if (module.default) module.default.apply(self, [{...this._args, self }]);
           
           // Dispatch a connect event
           this._shadow.dispatchEvent(new CustomEvent('connect'));
@@ -180,16 +191,17 @@ export function createWebComponentClass(
     }
 
     // Update Styles to reflect attribute changes
-    updateAttrStyles() {
-      let attrStyles = '';
-      Object.keys(this._args.attributes).forEach((key) => {
-        const attr = this._args.attributes[key];
-        if (attr.exposeToStyle) {
-          attrStyles += `--${key}: ${attr.value}; `;
+    updateStyles() {
+      if (!this._propStyleEl) return;
+      let propStyles = '';
+      Object.keys(this._args.properties).forEach((key) => {
+        const prop = this?.[key];
+        if (prop.exposeToStyles) {
+          attrStyles += `--${key}: ${prop.value}; `;
         }
       });
-      this._attrStyleEl.textContent = `:host { ${attrStyles} }`;
-    }
+      this._propStyleEl.textContent = `:host { ${propStyles} }`;
+    };
 
     // On connect, add watchers
     connectedCallback() {
@@ -201,7 +213,7 @@ export function createWebComponentClass(
     // On disconnect, remove all watchers
     disconnectedCallback() {
       this._mounted = false;
-      this._args.attributes?.forEach?.((attr) => {
+      this._args.properties?.forEach?.((attr) => {
         attr.unwatchAll();
       });
       this._shadow.dispatchEvent(new CustomEvent('disconnect'));
@@ -215,6 +227,10 @@ export function createWebComponentClass(
       extensions.getExtensionsByArtifact('@easedotjs/components').forEach(ext =>
         ext.onCleanup?.({ shadow: this._shadow, args: this._args })
       );
+    }
+
+    static get observedAttributes() {
+      return properties.filter((prop) => prop.attribute).map((attr) => attr.name);
     }
   }
   customElements.define(tagName, component);

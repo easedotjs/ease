@@ -1,5 +1,6 @@
 /** Ease */
 import * as log from './log.js'
+import { live } from './live.js';
 
 /* Core Config */
 export let config = {
@@ -98,4 +99,4 @@ globalThis.ease = { config, log, extensions: {
   before: beforeExtensions,
   getExtensionsByArtifact,
   all: config.inject.extensions,
-}}
+}, live}

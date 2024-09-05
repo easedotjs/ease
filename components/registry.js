@@ -12,36 +12,39 @@ const { config } = ease
 const ComponentRegistry = new Map();
 
 /** 
- * Defines an attribute 
+ * Defines an property 
  * 
 */
-class Attribute {
-  /** @type {string} The name of the attribute */
+class Property {
+  /** @type {string} The name of the property */
   name;
-  /** @type {string} The type of the attribute */
+  /** @type {string} The type of the property */
   type;
-  /** @type {string} The default value of the attribute */
+  /** @type {string} The default value of the property */
   default;
-  /** @type {boolean} Whether the attribute is required */
+  /** @type {boolean} Whether the property is required */
   required;
-  /** @type {boolean} Should the attribute be made available to the style */
-  exposeToStyle;
-
+  /** @type {boolean} Should the property be made available to the style */
+  exposeToStyles;
+  /** @type {boolean} If true, expose this property as an attribute */
+  attribute;
 
   /**
-   * Creates a new attribute definition
-   * @param {string} name The name of the attribute
-   * @param {string} type The type of the attribute
-   * @param {string} default The default value of the attribute
-   * @param {boolean} required Whether the attribute is required
-   * @param {boolean} exposeToStyle Should the attribute be made available to the style
+   * Creates a new property definition
+   * @param {string} name The name of the property
+   * @param {string} type The type of the property
+   * @param {string} defaultVal The default value of the property
+   * @param {boolean} attribute Should the property be exposed as an attribute
+   * @param {boolean} required Whether the property is required 
+   * @param {boolean} exposeToStyles Should the property be made available to the style
    */
-  constructor(name, type, defaultVal, required, exposeToStyle) {
+  constructor(name, type, defaultVal, required, exposeToStyles, attribute) {
     this.name = name;
     this.type = type || 'string';
     this.default = defaultVal;
     this.required = required;
-    this.exposeToStyle = exposeToStyle;
+    this.attribute = attribute;
+    this.exposeToStyles = exposeToStyles;
   }
 }
   
@@ -57,11 +60,10 @@ class ComponentRegistryDef {
   script;
   /** @type {string} The style for the component */
   style;
-  /** @type {Attribute} The attributes available in the component */
-  attributes;
+  /** @type {Property[]} The properties available in the component */
+  properties;
   /** @type {string} The source of the component */
   href;
-
 
   /**
    * Creates a new component definition
@@ -69,14 +71,15 @@ class ComponentRegistryDef {
    * @param {string} tagName The tag name of the component
    * @param {string} script The script body for the component
    * @param {string} style The style for the component
+   * @param {string} properties The properties for the component
    */
-  constructor(href, template, tagName, script, style, attributes) {
+  constructor(href, template, tagName, script, style, properties) {
     this.href = href;
     this.template = template;
     this.tagName = tagName;
     this.script = this._scriptBlobFromText(script);
     this.style = style;
-    this.attributes = attributes;
+    this.properties = properties;
   }
 
   _scriptBlobFromText(text) {
@@ -101,7 +104,7 @@ export async function fetchComponent(tagName, href) {
     return existingItem;
   }
 
-  const {template, script, style, attributes} = await fetch(href)
+  const {template, script, style, properties} = await fetch(href)
     .then(async (response) => ({ content: await response.text(), code: response.status }))
     .then(({content, code}) => {
       if (code !== 200) {
@@ -111,18 +114,19 @@ export async function fetchComponent(tagName, href) {
       // Parse the document and extract the template, script, and style
       const parser = new DOMParser();
       // TODO: Handle parsing errors
-      const document = parser.parseFromString(content, 'text/html');
+      const document = parser.parseFromString(`${content}`, 'text/html');
       // TODO: Throw a warning if the document does not contain a template
       const template = document.querySelector('template') || document.createElement('template');
       const script = document.querySelector('script:not([src])')?.textContent;
       const style = document.querySelector('style')?.textContent;
-      const attributes = Array.from(document.querySelectorAll('attribute')).map((attr) => {
-        return new Attribute(
-          attr.getAttribute('name'), 
-          attr.getAttribute('type'), 
-          attr.getAttribute('default'), 
-          attr.hasAttribute('required'), 
-          attr.hasAttribute('expose-to-style'));
+      const properties = Array.from(document.querySelectorAll('property')).map((prop) => {
+        return new Property(
+          prop.getAttribute('name'), 
+          prop.getAttribute('type'), 
+          prop.getAttribute('default'), 
+          prop.hasAttribute('required'), 
+          prop.hasAttribute('expose-to-styles'),
+          prop.hasAttribute('attribute'));
       });
 
       // Run the component through extensions
@@ -132,11 +136,11 @@ export async function fetchComponent(tagName, href) {
         }
       });
 
-      return {template, script, style, attributes};
+      return {template, script, style, properties};
     });
 
     // Register the component
-    return new ComponentRegistryDef(href, template, tagName, script, style, attributes);
+    return new ComponentRegistryDef(href, template, tagName, script, style, properties);
 }
 
 /**

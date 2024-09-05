@@ -1,13 +1,12 @@
 if (typeof ease === 'undefined') {
   throw new Error('This library requires Ease to be loaded first')
 }
-ease.extensions.require(['@easedotjs/reactive'])
 ease.extensions.before(['@easedotjs/components'])
 
 const { error } = ease.log;
+const { live } = ease;
 
 // Get the live method from the reactive extension
-const live = ease.extensions.get('@easedotjs/reactive').methods.live;
 let evals = [];
 
 /**
@@ -38,7 +37,7 @@ function onInit({ shadow, args }) {
   args.rx = args.rx || {};
 
   // TODO: Make reactive attributes work
-  
+
   // Convert all reactive-text elements to reactive values
   reactiveTextElements.forEach((element) => {
     // Get the key from the text content
@@ -46,22 +45,22 @@ function onInit({ shadow, args }) {
     let textNode = document.createTextNode('');
     element.parentNode.replaceChild(textNode, element);
 
-    // If the key starts with :, it's bound to an attribute
+    // If the key starts with :, it's bound to an property
     if (key.startsWith(':')) {
       key = key.substring(1);
 
-      // If the key exists, bind the reactive value to the attribute
-      if (!args.attributes[key]) {
-        throw error(`Attribute ${key} does not exist, but is using the attribute binding syntax :${key}`, 
+      // If the key exists, bind the reactive value to the property
+      if (!args.properties[key]) {
+        throw error(`Property ${key} does not exist, but is using the property binding syntax :${key}`, 
                     'In component:', shadow.tagName,
                     'At position:', shadow).toError();
       }
 
-      args.attributes[key]?.watch((value) => {
+      args.properties[key]?.watch((value) => {
         textNode.textContent = value;
       });
 
-      textNode.textContent = args.attributes[key].value;
+      textNode.textContent = args.properties[key].value;
     } else if (key.startsWith('[')) {
       // If the key starts with [, it's an expression
       // NOTE: This is a very basic implementation and does not support complex expressions
