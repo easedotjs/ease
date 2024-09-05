@@ -51,5 +51,6 @@ Promise.all([...componentPromises, ...componentDefPromises]).then(() => {
   if (rootTemplate) {
     rootTemplate.replaceWith(rootTemplate.content);
   }
+  document.body.classList.add('hydrated');
 });
 
