@@ -99,4 +99,4 @@ globalThis.ease = { config, log, extensions: {
   before: beforeExtensions,
   getExtensionsByArtifact,
   all: config.inject.extensions,
-}, live}
+}, live};

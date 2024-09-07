@@ -18,7 +18,7 @@ const componentPromises = Array.from(document.querySelectorAll('link[rel="compon
 
 // Get component definitions
 const componentDefPromises = Array.from(document.querySelectorAll('link[rel="component-def"]')).map(async (link) => {
-  return fetch(link.href).then((response) => {
+  return fetch(`${link.href}`, { headers: { 'x-ease-fetch': 'true' } }).then((response) => {
     if (response.status === 404) {
       throw warn(`Failed to load component from ${href}`)
     }

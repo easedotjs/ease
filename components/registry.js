@@ -104,7 +104,7 @@ export async function fetchComponent(tagName, href) {
     return existingItem;
   }
 
-  const {template, script, style, properties} = await fetch(href)
+  const {template, script, style, properties} = await fetch(`${href}`, { headers: { 'x-ease-fetch': 'true' } })
     .then(async (response) => ({ content: await response.text(), code: response.status }))
     .then(({content, code}) => {
       if (code !== 200) {

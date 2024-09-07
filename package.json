@@ -23,5 +23,8 @@
   "license": "MIT",
   "devDependencies": {
     "esbuild": "^0.23.1"
+  },
+  "dependencies": {
+    "jsdom": "^25.0.0"
   }
 }
