@@ -20,7 +20,7 @@ const componentPromises = Array.from(document.querySelectorAll('link[rel="compon
 const componentDefPromises = Array.from(document.querySelectorAll('link[rel="component-def"]')).map(async (link) => {
   return fetch(`${link.href}`, { headers: { 'x-ease-fetch': 'true' } }).then((response) => {
     if (response.status === 404) {
-      throw warn(`Failed to load component from ${href}`)
+      throw warn(`Failed to load component from ${href}`, 'URL returned 404').toError();
     }
     return response.text()
   }).then(async (content) => {
@@ -36,6 +36,9 @@ const componentDefPromises = Array.from(document.querySelectorAll('link[rel="com
 
             // Define the custom element
             createWebComponentClass(def.tagName, def.template, def.style, def.script, def.properties);
+          })
+          .catch((err) => {
+            error(`Failed to load component from ${component.attributes['href'].value}`, err)
           })
       }
     })

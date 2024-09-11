@@ -110,11 +110,11 @@ function onCleanup({args}) {
   evals = [];
 }
 
-ease.extensions.add({
-  name: '@easedotjs/reactive-dom',
-  ['@easedotjs/components']: { 
-    onFetchComponent,
-    onInit,
-    onCleanup
-  }
-});
+// ease.extensions.add({
+//   name: '@easedotjs/reactive-dom',
+//   ['@easedotjs/components']: { 
+//     onFetchComponent,
+//     onInit,
+//     onCleanup
+//   }
+// });

@@ -39,7 +39,10 @@ export function createWebComponentClass(
       // Extensions
       extensions: {},
       get ext() { return this.extensions },
-      get [config.inject.name]() { return this.extensions}
+      get [config.inject.name]() { return this.extensions},
+      // Attributes
+      attributes: {},
+      get attrs() { return this.attributes },      
     };
 
     constructor() {
@@ -48,19 +51,22 @@ export function createWebComponentClass(
       // Allows accessing the component from methods
       let self = this;
       
-      if (template.hasAttribute('shadowless')) {
-        this._shadow = this;
-      } else {
+      //if (template.hasAttribute('shadowless')) {
+      //  this._shadow = this;
+      //} else {
         // Create the shadow DOM
         this._shadow = this.attachShadow({mode: 'open'});
         this._args.root = this._shadow;
-      }
+      //}
 
       // Add tag name to shadow for debugging purposes
       this._shadow.tagName = tagName;
           
       // Clone the template into the shadow DOM
-      this._shadow.appendChild(template.content.cloneNode(true));
+      // TODO: Build DOM manually
+      template.children.forEach((el) => {
+        this._shadow.appendChild(el.htmlNode.cloneNode(true));
+      });
       
       // Load the stylesheet
       if (style) {
@@ -70,8 +76,8 @@ export function createWebComponentClass(
       } 
 
       // Get properties and store them in the properties object
-      let propStyles = '';      
-      properties?.forEach?.((prop) => {        
+      let propStyles = '';
+      properties?.forEach?.((prop) => {
         this._args.properties[prop.name] = {
           _listeners: [],
           _value: prop.default,
@@ -185,9 +191,14 @@ export function createWebComponentClass(
       }
 
       // Handle initialization through extensions
-      extensions.getExtensionsByArtifact('@easedotjs/components').forEach(ext =>
+      extensions.getExtensionsByArtifact('@easedotjs/components').forEach(([ext]) =>
         ext.onInit?.({ shadow: this._shadow, args: this._args, instance: self })
       );
+
+      // Get attributes and store them in the attributes object
+      Array.from(this.attributes).forEach((attr) => {
+        this._args.attributes[attr.name] = attr.value;
+      });
     }
 
     // Update Styles to reflect attribute changes
@@ -224,7 +235,7 @@ export function createWebComponentClass(
       })
 
       // Handle cleanup through extensions
-      extensions.getExtensionsByArtifact('@easedotjs/components').forEach(ext =>
+      extensions.getExtensionsByArtifact('@easedotjs/components').forEach(([ext]) =>
         ext.onCleanup?.({ shadow: this._shadow, args: this._args })
       );
     }

@@ -84,7 +84,7 @@ export function beforeExtensions(names) {
  */
 export function getExtensionsByArtifact(element) {
   return config.inject.extensions.filter((extension) => !!extension[element])
-          .map((extension) => extension[element])
+          .map((extension) => [extension[element], extension.name])
 }
 
 /* Print to the console if debug mode is enabled */

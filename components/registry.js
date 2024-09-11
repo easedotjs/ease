@@ -2,6 +2,8 @@ if (typeof ease === 'undefined') {
   throw new Error('This library requires Ease to be loaded first')
 }
 
+import { parseDocument } from './parser.js';
+
 const { warn, error, info } = ease.log
 const { config } = ease
 
@@ -104,50 +106,42 @@ export async function fetchComponent(tagName, href) {
     return existingItem;
   }
 
-  const {template, script, style, properties} = await fetch(`${href}`, { headers: { 'x-ease-fetch': 'true' } })
+  return await fetch(`${href}`, { headers: { 'x-ease-fetch': 'true' } })
     .then(async (response) => ({ content: await response.text(), code: response.status }))
     .then(({content, code}) => {
       if (code !== 200) {
-        throw new Error(`Failed to fetch component from ${href}`);
+        throw error(`Failed to fetch component from ${href}`).toError();
+        return;
       }
 
-      // Parse the document and extract the template, script, and style
-      const parser = new DOMParser();
-      // TODO: Handle parsing errors
-      const document = parser.parseFromString(`${content}`, 'text/html');
-      // TODO: Throw a warning if the document does not contain a template
-      const template = document.querySelector('template') || document.createElement('template');
-      const script = document.querySelector('script:not([src])')?.textContent;
-      const style = document.querySelector('style')?.textContent;
-      const properties = Array.from(document.querySelectorAll('property')).map((prop) => {
-        return new Property(
-          prop.getAttribute('name'), 
-          prop.getAttribute('type'), 
-          prop.getAttribute('default'), 
-          prop.hasAttribute('required'), 
-          prop.hasAttribute('expose-to-styles'),
-          prop.hasAttribute('attribute'));
-      });
+      const {template, script, style, properties} = parseDocument(content);
 
       // Run the component through extensions
-      ease.extensions.getExtensionsByArtifact('@easedotjs/components').forEach((extension) => {
+      ease.extensions.getExtensionsByArtifact('@easedotjs/components').forEach(([extension, name]) => {
         if (extension.onFetchComponent) {
-          extension.onFetchComponent({template, script, style});
+          try {
+            extension.onFetchComponent({template, script, style});
+          } catch (e) {
+            error(`Failed to run extension ${name} onFetchComponent for ${href}`, e);
+          }
         }
       });
 
       return {template, script, style, properties};
+    }).then(({template, script, style, properties}) => {
+      return new ComponentRegistryDef(href, template, tagName, script, style, properties);
+    })
+    .catch((err) => {
+      error(`Failed to fetch component from ${href}`);
     });
-
-    // Register the component
-    return new ComponentRegistryDef(href, template, tagName, script, style, properties);
-}
+  }
 
 /**
  * Registers a component with the registry
  * @param {ComponentRegistryDef} def The component definition
  */
 export function registerComponent(def) {
+  if (!def) { return }
   // TODO: Validate the component definition
   if (!ComponentRegistry.has(def.tagName)) {
     ComponentRegistry.set(def.tagName, def);
