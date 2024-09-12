@@ -109,6 +109,9 @@ router._updateArgs(window.location.search.substring(1));
 class LinkToElement extends HTMLElement {
   constructor() {
     super();
+  }
+
+  connectedCallback() {
     const anchor = document.createElement('a');
     anchor.href = this.getAttribute('href');
     anchor.textContent = this.textContent;

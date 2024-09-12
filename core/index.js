@@ -1,6 +1,7 @@
 /** Ease */
-import * as log from './log.js'
+import * as _log from './log.js'
 import { live } from './live.js';
+const { error, log, info } = _log;
 
 /* Core Config */
 export let config = {
@@ -47,7 +48,7 @@ document.querySelectorAll('meta')?.forEach((meta) => {
 export function addExtension(object) {
   let name = object.name || object.constructor.name
   config.inject.extensions.push(object)
-  log.info(`Extension '${name}' has been added to Ease`)
+  info(`Extension '${name}' has been added to Ease`)
 }
 
 export function getExtension(name) {
@@ -88,10 +89,10 @@ export function getExtensionsByArtifact(element) {
 }
 
 /* Print to the console if debug mode is enabled */
-if (config.core.debug) log.info('Ease Loaded in Debug Mode');
+if (config.core.debug) info('Ease Loaded in Debug Mode');
 
 /* Export Ease */
-globalThis.ease = { config, log, extensions: {
+globalThis.ease = { config, log: _log, extensions: {
   add: addExtension,
   get: getExtension,
   has: hasExtension,

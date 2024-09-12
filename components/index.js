@@ -6,6 +6,7 @@ const { warn, error, info } = ease.log
 
 import { fetchComponent, registerComponent } from './registry.js'
 import { createWebComponentClass } from './hydrate.js'
+import * as vdom from './vdom.js'
 
 // Get components defined in the document
 const componentPromises = Array.from(document.querySelectorAll('link[rel="component"]')).map(async (link) => {
@@ -57,3 +58,7 @@ Promise.all([...componentPromises, ...componentDefPromises]).then(() => {
   document.body.classList.add('hydrated');
 });
 
+ease.extensions.add({
+  name: '@easedotjs/components',
+  vdom,
+});

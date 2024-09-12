@@ -10,7 +10,8 @@ export class EaseAttribute {
 }
 
 export class EaseNode {
-  #tag;#attributes;#parent;#ns = undefined;
+  #tag;#attributes;#parent;#ns;
+  #meta = {};
   #children = [];
 
   constructor(tag, attributes, ns, children = []) {
@@ -18,15 +19,6 @@ export class EaseNode {
     this.#attributes = attributes;
     this.#children.push(...children);
     this.#ns = ns;
-  }
-
-  addChild(node) {
-    this.#children.push(node);
-    node.setParent(this);
-  }
-
-  setParent(node) {
-    this.#parent = node;
   }
 
   static fromString(text, ns) {
@@ -67,26 +59,98 @@ export class EaseNode {
       return new EaseNode(tag, attrsArray, ns);
     }
   }
-
+  
   get parent() { return this.#parent }
   get tag() { return this.#tag; }
   get attributes() { return this.#attributes; }
   get children() { return this.#children; }
   get ns() { return this.#ns; }
+  get meta() { return this.#meta; }
+  set meta(value) { this.#meta = value; }
+  get htmlNode() {
+    if (this.meta.htmlNode) return this.meta.htmlNode;
+    const node = this.#ns ? document.createElementNS(this.#ns, this.#tag) : document.createElement(this.#tag);
+      this.#attributes.forEach((attr) => {
+        node.setAttribute(attr.name, attr.value.replace(/"/g, ''));
+      });
+      this.#children.forEach((child) => {
+        node.appendChild(child.htmlNode);
+      });
+      this.meta.htmlNode = node;
+    return node;
+  }
+  
 
-  toString() {
-    return `<${this.#tag}${this.#attributes.length?' ':''}${this.#attributes.map((attr) => `${attr.name}${attr.value?`="${attr.value}"`:''}`).join(' ')}>${this.#children.map((child) => child.toString()).join('')}</${this.#tag}>`;
+  addChild(node) {
+    this.#children.push(node);
+    node.setParent(this);
   }
 
-  get htmlNode() {
-    const node = this.#ns ? document.createElementNS(this.#ns, this.#tag) : document.createElement(this.#tag);
-    this.#attributes.forEach((attr) => {
-      node.setAttribute(attr.name, attr.value.replace(/"/g, ''));
+  setParent(node) {
+    this.#parent = node;
+  }
+
+  toString() {
+    return `<${this.#tag}${this.#attributes?.length?' ':''}${this.#attributes?.map?.((attr) => `${attr.name}${attr.value?`="${attr.value}"`:''}`)?.join(' ')||''}>${this.#children.map((child) => child.toString()).join('')}</${this.#tag}>`;
+  }
+
+  insertBefore(newChild, beforeNode) {
+    const index = this.#children.indexOf(beforeNode);
+    if (index === -1) throw new Error('Child not found');
+    this.#children.splice(index, 0, newChild);
+    newChild.setParent(this);
+  }
+
+  replaceChild(child, withNode) {
+    const index = this.#children.indexOf(child);
+    if (index === -1) throw new Error('Child not found');
+    this.#children[index] = withNode;
+    withNode.setParent(this);
+  }
+
+  removeChild(child) {
+    const index = this.#children.indexOf(child);
+    if (index === -1) throw new Error('Child not found');
+    this.#children.splice(index, 1);
+  }
+
+  remove() {
+    this.parent.removeChild(this);
+  }
+
+  /**
+   * Replaces this node with one or more nodes
+   * @param {EaseNode|EaseNode[]} nodes A single node or multiple nodes to replace the current node with 
+   */
+  replace(nodes) {
+    if (!Array.isArray(nodes)) nodes = [nodes];
+    nodes.forEach((node) => {
+      this.parent.insertBefore(node, this);
+    });
+    this.remove();
+  }
+
+  addMeta(key, val) {
+    this.#meta[key] = val;
+  }
+
+  getMeta(key) {
+    return this.#meta[key];
+  }
+
+  deleteMeta(key) {
+    delete this.#meta[key];
+  }
+
+  clone() {
+    const clone = new EaseNode(this.#tag, this.#attributes, this.#ns);
+    Object.keys(this.meta).forEach((key) => {
+      clone.addMeta(key, this.meta[key]);
     });
     this.#children.forEach((child) => {
-      node.appendChild(child.htmlNode);
+      clone.addChild(child.clone());
     });
-    return node;
+    return clone;
   }
 }
 
@@ -99,9 +163,22 @@ export class EaseTextNode extends EaseNode {
   }
 
   get text() { return this.#text; }
-  get htmlNode() { return document.createTextNode(this.#text); }
+  set text(value) { this.#text = value; }
+  get htmlNode() { 
+    if (this.meta.htmlNode) return this.meta.htmlNode;
+    const node = document.createTextNode(this.#text); 
+    this.meta.htmlNode = node;
+    return node;
+  }
   toString() { return this.#text; }
   addChild() { throw new Error('Cannot add children to text node'); }
+  clone() { 
+    const clone = new EaseTextNode(this.#text); 
+    Object.keys(this.meta).forEach((key) => {
+      clone.addMeta(key, this.meta[key]);
+    });
+    return clone;
+  }
 }
 
 export class EaseNodeParser {

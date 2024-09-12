@@ -22,12 +22,13 @@ export function createWebComponentClass(
   //       - we should make it static on the class
   const component = class extends HTMLElement {
     /** The shadow element that holds the content */
-    _shadow;
-    _mounted = false;
-    _styleEl;
-    _propStyleEl;
-    _eventListeners = [];
-    _args = {
+    #shadow;
+    #mounted = false;
+    #styleEl;
+    #propStyleEl;
+    eventListeners = [];
+    #vdom;
+    #args = {
       // The shadow
       root: undefined,
       // Elements
@@ -52,33 +53,35 @@ export function createWebComponentClass(
       let self = this;
       
       //if (template.hasAttribute('shadowless')) {
-      //  this._shadow = this;
+      //  this.#shadow = this;
       //} else {
         // Create the shadow DOM
-        this._shadow = this.attachShadow({mode: 'open'});
-        this._args.root = this._shadow;
+        this.#shadow = this.attachShadow({mode: 'open'});
+        this.#args.root = this.#shadow;
       //}
 
-      // Add tag name to shadow for debugging purposes
-      this._shadow.tagName = tagName;
-          
+      this.#vdom = template.clone();
+    }
+
+    #applyEaseElements () {
+      const self = this;
+      
       // Clone the template into the shadow DOM
-      // TODO: Build DOM manually
-      template.children.forEach((el) => {
-        this._shadow.appendChild(el.htmlNode.cloneNode(true));
+      this.#vdom.children.forEach((el) => {
+        this.#shadow.appendChild(el.htmlNode);
       });
       
       // Load the stylesheet
       if (style) {
-        this._styleEl = document.createElement('style');
-        this._styleEl.textContent = style;
-        this._shadow.appendChild(this._styleEl);
+        this.#styleEl = document.createElement('style');
+        this.#styleEl.textContent = style;
+        this.#shadow.appendChild(this.#styleEl);
       } 
 
       // Get properties and store them in the properties object
       let propStyles = '';
       properties?.forEach?.((prop) => {
-        this._args.properties[prop.name] = {
+        this.#args.properties[prop.name] = {
           _listeners: [],
           _value: prop.default,
           type: prop.type,
@@ -99,7 +102,7 @@ export function createWebComponentClass(
            */
           watch(callback) {
             this._listeners.push(callback);
-            if (!this._mounted) {
+            if (!this.mounted) {
               callback(this.value, undefined);
             }
           },
@@ -119,9 +122,9 @@ export function createWebComponentClass(
         };
         
         Object.defineProperty(this, prop.name, {
-          get: () => this._args.properties[prop.name].value,
+          get: () => this.#args.properties[prop.name].value,
           set: (v) => { 
-            this._args.properties[prop.name].value = v
+            this.#args.properties[prop.name].value = v
           }
         })
 
@@ -131,29 +134,29 @@ export function createWebComponentClass(
         }
 
         if (prop.attribute) {
-          this._args.properties[prop.name].value = this.getAttribute(prop.name) || prop.default;
+          this.#args.properties[prop.name].value = this.getAttribute(prop.name) || prop.default;
         }
 
         // If the property is set for style exposure, add it to the style element
         if (prop.exposeToStyles) {
-          propStyles += `--${prop.name}: ${this._args.properties[prop.name].value}; `;
+          propStyles += `--${prop.name}: ${this.#args.properties[prop.name].value}; `;
         }
       });
 
       // Add the attribute styles to the style element
       if (propStyles) {
-        this._propStyleEl = document.createElement('style');
-        this._propStyleEl.textContent += `:host { ${propStyles} }`;
-        this._shadow.insertBefore(this._propStyleEl, this._styleEl);
+        this.#propStyleEl = document.createElement('style');
+        this.#propStyleEl.textContent += `:host { ${propStyles} }`;
+        this.#shadow.insertBefore(this.#propStyleEl, this.#styleEl);
       }
 
       // Get elements by ID and store them in the elements object
-      this._shadow.querySelectorAll('[id]').forEach((el) => {
-        this._args.elements[el.id] = el;
+      this.#shadow.querySelectorAll('[id]').forEach((el) => {
+        this.#args.elements[el.id] = el;
       });
       
       // Get all extensions
-      this._args.extensions = extensions.all.reduce((p, c) => {
+      this.#args.extensions = extensions.all.reduce((p, c) => {
         const objects = c.objects || {};
         const methods = c.methods || {};
         return {...p, ...objects, ...methods};
@@ -161,17 +164,17 @@ export function createWebComponentClass(
 
       // Override event listeners; this allows tracking event listeners
       // and removing them when the component is disconnected
-      const _shadowAddEventListener = this._shadow.addEventListener;
-      this._shadow.addEventListener = function (name, callback) {
-        self._eventListeners.push({ name, callback })
-        _shadowAddEventListener(name, callback)
+      const shadowAddEventListener = this.#shadow.addEventListener;
+      this.#shadow.addEventListener = function (name, callback) {
+        self.eventListeners.push({ name, callback })
+        shadowAddEventListener(name, callback)
       }
       
-      const _shadowRemoveEventListener = this._shadow.removeEventListener;
-      this._shadow.removeEventListener = function (name, callback) {
-        self._eventListeners = self._eventListeners.filter(({ name: n, callback: c }) => {
+      const shadowRemoveEventListener = this.#shadow.removeEventListener;
+      this.#shadow.removeEventListener = function (name, callback) {
+        self.eventListeners = self.eventListeners.filter(({ name: n, callback: c }) => {
           if (n === name && c === callback) {
-            _shadowRemoveEventListener(name, callback)
+            shadowRemoveEventListener(name, callback)
             return false
           }
           return true
@@ -183,66 +186,71 @@ export function createWebComponentClass(
         import(scriptUrl).then((module) => {
           if (!module.default) return;          
           // If the module has a default export, call it with the component as the argument
-          if (module.default) module.default.apply(self, [{...this._args, self }]);
+          if (module.default) module.default.apply(self, [{...this.#args, self }]);
           
           // Dispatch a connect event
-          this._shadow.dispatchEvent(new CustomEvent('connect'));
+          this.#shadow.dispatchEvent(new CustomEvent('connect'));
         });
       }
 
       // Handle initialization through extensions
       extensions.getExtensionsByArtifact('@easedotjs/components').forEach(([ext]) =>
-        ext.onInit?.({ shadow: this._shadow, args: this._args, instance: self })
+        ext.onInit?.({ shadow: this.#shadow, args: this.#args, instance: self })
       );
 
       // Get attributes and store them in the attributes object
       Array.from(this.attributes).forEach((attr) => {
-        this._args.attributes[attr.name] = attr.value;
+        this.#args.attributes[attr.name] = attr.value;
       });
     }
 
     // Update Styles to reflect attribute changes
     updateStyles() {
-      if (!this._propStyleEl) return;
+      if (!this.#propStyleEl) return;
       let propStyles = '';
-      Object.keys(this._args.properties).forEach((key) => {
+      Object.keys(this.#args.properties).forEach((key) => {
         const prop = this?.[key];
         if (prop.exposeToStyles) {
           attrStyles += `--${key}: ${prop.value}; `;
         }
       });
-      this._propStyleEl.textContent = `:host { ${propStyles} }`;
+      this.#propStyleEl.textContent = `:host { ${propStyles} }`;
     };
 
     // On connect, add watchers
     connectedCallback() {
-      this._mounted = true;
+      this.#applyEaseElements();
+      this.#mounted = true;
       // Dispatch a connect event
-      this._shadow.dispatchEvent(new CustomEvent('connect'));
+      this.#shadow.dispatchEvent(new CustomEvent('connect'));
     }
 
     // On disconnect, remove all watchers
     disconnectedCallback() {
-      this._mounted = false;
-      this._args.properties?.forEach?.((attr) => {
+      this.#mounted = false;
+      this.#args.properties?.forEach?.((attr) => {
         attr.unwatchAll();
       });
-      this._shadow.dispatchEvent(new CustomEvent('disconnect'));
+      this.#shadow.dispatchEvent(new CustomEvent('disconnect'));
 
       // Remove all event listeners
-      this._eventListeners.forEach(({ name, callback }) => {
-        this._shadow.removeEventListener(name, callback)
+      this.eventListeners.forEach(({ name, callback }) => {
+        this.#shadow.removeEventListener(name, callback)
       })
 
       // Handle cleanup through extensions
       extensions.getExtensionsByArtifact('@easedotjs/components').forEach(([ext]) =>
-        ext.onCleanup?.({ shadow: this._shadow, args: this._args })
+        ext.onCleanup?.({ shadow: this.#shadow, args: this.#args })
       );
     }
 
     static get observedAttributes() {
       return properties.filter((prop) => prop.attribute).map((attr) => attr.name);
     }
+
+    get mounted() { return this.#mounted; }
+    get vdom() { return this.#vdom; }
+    
   }
   customElements.define(tagName, component);
   return component;
